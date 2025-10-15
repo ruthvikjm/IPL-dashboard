@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>IPL Dashboard</title>
+  <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+
+  <script type="text/javascript">
+    google.charts.load('current', {'packages':['corechart', 'bar']});
+    google.charts.setOnLoadCallback(drawCharts);
+
+    const task1Data = JSON.parse('{{ task1_json|safe }}');
+    const task2Data = JSON.parse('{{ task2_json|safe }}');
+    const extraData = JSON.parse('{{ extra_json|safe }}');
+    const econData = JSON.parse('{{ econ_json|safe }}');
+    const playedData = JSON.parse('{{ played_json|safe }}');
+
+    function drawCharts() {
+      // Task 1: Matches per year
+      const chart1Array = [['Year', 'Matches Played']];
+      task1Data.forEach(d => chart1Array.push([d.season.toString(), d.count]));
+      const chart1 = new google.visualization.ColumnChart(document.getElementById('chart1'));
+      chart1.draw(google.visualization.arrayToDataTable(chart1Array), {
+        title: 'Total IPL Matches Played Each Year',
+        legend: { position: 'none' }
+      });
+
+      // Task 2: Matches won per team stacked
+      const teamNames = task2Data.map(t => t.team);
+      const chart2Array = [['Year', ...teamNames]];
+      // assume task1Data years align with task2 wins indexes
+      for (let i = 0; i < task1Data.length; i++) {
+        const year = task1Data[i].season.toString();
+        const row = [year, ...task2Data.map(t => t.wins[i] || 0)];
+        chart2Array.push(row);
+      }
+      const chart2 = new google.visualization.ColumnChart(document.getElementById('chart2'));
+      chart2.draw(google.visualization.arrayToDataTable(chart2Array), { title: 'Matches Won by Each Team Over the Years', isStacked: true });
+
+      // If year-specific data exists, draw tasks 3-5
+      if (extraData && extraData.length) {
+        const chart3Array = [['Team', 'Extra Runs']];
+        extraData.forEach(d => chart3Array.push([d.bowling_team, d.extra]));
+        new google.visualization.ColumnChart(document.getElementById('chart3'))
+          .draw(google.visualization.arrayToDataTable(chart3Array), { title: 'Extra Runs Conceded per Team' });
+      }
+
+      if (econData && econData.length) {
+        const chart4Array = [['Bowler', 'Economy']];
+        econData.forEach(d => chart4Array.push([d.bowler, d.economy || (d.runs/(d.balls/6))]));
+        new google.visualization.ColumnChart(document.getElementById('chart4'))
+          .draw(google.visualization.arrayToDataTable(chart4Array), { title: 'Top Economical Bowlers' });
+      }
+
+      if (playedData && playedData.length) {
+        const chart5Array = [['Team', 'Played', 'Won']];
+        playedData.forEach(d => chart5Array.push([d.team, d.played, d.won]));
+        new google.visualization.ColumnChart(document.getElementById('chart5'))
+          .draw(google.visualization.arrayToDataTable(chart5Array), { title: 'Matches Played vs Won per Team' });
+      }
+    }
+  </script>
+
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1 { text-align: center; margin-bottom: 30px; }
+    .chart { margin: 40px 0; }
+    form { text-align: center; margin: 20px 0; }
+    select, button { padding: 6px; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>IPL Dashboard</h1>
+
+  <div id="chart1" class="chart" style="width:100%; height:380px;"></div>
+  <div id="chart2" class="chart" style="width:100%; height:480px;"></div>
+
+  <form method="get">
+    <label for="year">Select year for more charts:</label>
+    <select id="year" name="year">
+      <option value="">-- choose year --</option>
+      {% for y in years %}
+        <option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit">Show</button>
+  </form>
+
+  {% if selected_year %}
+    <div id="chart3" class="chart" style="width:100%; height:360px;"></div>
+    <div id="chart4" class="chart" style="width:100%; height:360px;"></div>
+    <div id="chart5" class="chart" style="width:100%; height:360px;"></div>
+  {% endif %}
+</body>
+</html>
